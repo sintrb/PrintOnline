@@ -23,5 +23,5 @@ setup(name='PrintOnline',
       packages=['PrintOnline'],
       scripts=['PrintOnline/PrintOnline.bat'],
       include_package_data=True,
-      install_requires=['win32api'],
+#       install_requires=['win32api'],
       zip_safe=False)

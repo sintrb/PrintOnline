@@ -4,3 +4,8 @@ CHANGES
 
 - init version.
 
+
+0.0.2
+
+- remove win32api requires.
+
