@@ -73,6 +73,28 @@ def del_file(f):
     if os.path.exists(d) and os.path.isdir(d) and os.path.exists(os.path.join(d, f)):
         os.remove(os.path.join(d, f))
 
+def set_file(name, fp):
+    d = options['tempdir']
+    if not os.path.exists(d):
+        os.makedirs(d)
+    fn = os.path.join(d, name)
+    with open(fn, 'wb') as f:
+        f.write(fp.read())
+
+def print_file(filename, printername):
+    printername = win32print.GetDefaultPrinter()
+#     filepath = os.path.join(options['tempdir'], filename).decode('utf-8')
+    device = '/d:"%s"' % printername
+#     print filepath, device
+#     filepath = r'C:\Users\Administrator\Desktop\LeetCode\全页照片.pdf'
+#     device = r'/d:"doPDF v7"'
+    os.chdir(options['tempdir'])
+    try:
+        win32api.ShellExecute(0, "print", filename, device, options['tempdir'], 0)
+    except Exception,e:
+        print e
+        
+
 class PrintOnlineRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
     server_version = "PrintOnline/" + __version__
     protocol_version = "HTTP/1.1"
@@ -107,6 +129,45 @@ class PrintOnlineRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 'files':self.api_files(),
                 'printers':self.api_printers()
                 }
+    def api_print(self, filename, printername):
+        print_file(filename, printername)
+        return {}
+    def do_POST(self):
+        if not self.check_auth():
+            return
+        f = StringIO()
+        contenttype = 'text/html'
+        statuscode = 200
+        
+#         length = int(self.headers.getheader('content-length'))
+#         body = self.rfile.read(length)
+#         print len(body)
+#         print body
+        import cgi 
+        
+        form = cgi.FieldStorage(
+            fp=self.rfile,
+            headers=self.headers,
+            environ={'REQUEST_METHOD':'POST',
+              'CONTENT_TYPE':self.headers['Content-Type'],
+            })
+        uploadfile = form['file']
+        filename = uploadfile.filename
+        set_file(filename, uploadfile.file)
+        res = {
+               'name':filename
+               }
+        
+        f.write(json.dumps(res))
+        
+        self.send_response(statuscode)
+        self.send_header("Content-type", contenttype)
+        self.send_header("Content-Length", str(f.tell()))
+        self.send_header('Connection', 'close')
+                
+        self.end_headers()
+        f.seek(0)
+        shutil.copyfileobj(f, self.wfile)
     
     def do_GET(self):
         if not self.check_auth():

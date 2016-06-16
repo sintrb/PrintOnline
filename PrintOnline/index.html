@@ -4,6 +4,9 @@
 		<meta charset="utf-8">
 		<meta name="viewport" content="width=device-width,height=device-height,inital-scale=1.0,maximum-scale=1.0,user-scalable=no;">
 		<script src="/static/angular.min.js"></script>
+		<script src="/static/jquery-1.7.2.min.js"></script>
+		<script src="/static/jquery.form.min.js"></script>
+		<script src="/static/jquery.ajaxfileupload.js"></script>
 		<title>PrintOnline</title>
 		<style type="text/css">
 		body{
@@ -60,18 +63,15 @@
 		.btns a.enable{
 			color: blue;
 		}
+		.newitem{
+			background: #d4ffd4;
+		}
 		</style>
 	</head>
 	<body>
 		<div ng-app="PrintOnline" ng-controller="PrintOnlineCtrl">
 			<div style="width: 100%; margin: 0 auto; max-width: 800px;">
-				<div>
-					<span style="float: left;">{{status}}</span>
-					<span style="color: red; float: left;" ng-if="error.length>0">{{error}}</span>
-					<span ng-show="info.rev" style="float: right;">[REV:{{info.rev}}]</span>
-					<span style="clear: both;"></span>
-				</div>
-				Printers:
+				Printers: &nbsp;&nbsp; <span>{{status}}</span><span style="color: red;" ng-if="error.length>0">{{error}}</span>
 				<table style="width: 100%; margin: 5px 0;">
 					<tr class="titleline">
 						<td class="checkbox">
@@ -100,10 +100,10 @@
 				<hr />
 				Files:
 					<input type="text" ng-model="query" style="width:120px;" />
-					<button ng-click="print()">PRINT<span>({{selectedfiles().length}})</span></button>
-					<button>UPLOAD</button>
-					<form style="">
-						<input type="file" name="file" />
+					<button ng-click="print()">PRINT<span ng-show="selected()">({{selectedfiles().length}})</span></button>
+					<button ng-click="upload()">UPLOAD<span ng-show="uploader.progress">({{uploader.progress}})</span></button>
+					<form style="display:none;" enctype="multipart/form-data" method="post" id="uploadform" action="/">
+						<input type="file" name="file" id="filefield"/>
 					</form>
 				<table style="width: 100%; margin: 5px 0;">
 					<tr class="titleline">
@@ -114,7 +114,7 @@
 							Name
 						</td>
 					</tr>
-					<tr ng-repeat="f in files|filter:query" class="file" ng-if="files && files.length>0">
+					<tr ng-repeat="f in files|filter:query|orderBy:'$index':true" class="file" ng-if="files && files.length>0" ng-class="{newitem:f.isnew}">
 						<td class="checkbox">
 							<img class="checkbox" ng-click="f.checked=!f.checked" ng-src="{{f.checked?'/static/checked.png':'/static/unchecked.png'}}">
 						</td>
@@ -132,13 +132,13 @@
 					</tr>
 				</table>
 				<div style="border: 1px solid gray; padding:5px;" ng-show="logs && logs.length>0">
-					<span style="display: block;" ng-repeat="l in logs">{{l}}</span>
+					<span style="display: block;" ng-repeat="l in logs track by $index">{{l}}</span>
 				</div>
 
 				<div style="text-align: center; margin-top: 10px;" class="btns">
 					<a href="javascript:void(0);" ng-click="refresh();" ng-class="{enable:true}">REFRESH</a>
 					|
-					<a href="javascript:void(0);" ng-click="svninfo();" ng-enable="can_status()" ng-class="{enable:can_status()}">PRINT</a>
+					<a href="javascript:void(0);" ng-click="print();" ng-enable="selected()" ng-class="{enable:selected()}">PRINT</a>
 				</div>
 			</div>
 		</div>
@@ -171,6 +171,9 @@
 				}
 				return arr;
 			}
+			$scope.selected = function(){
+				return $scope.selectedfiles().length > 0;
+			}
 			$scope.refresh = function(){
 				$scope.status = 'refresh...';
 				$http({url:'/api/update',params:{path:$scope.path}}).success(function(res) {
@@ -183,11 +186,100 @@
 				});
 			};
 			$scope.print = function(){
-				console.log('print');
-				$scope.logs.push("dd");
+				// console.log('print');
+				var files = [];
+				for(var i=0; i<$scope.files.length; ++i){
+					if($scope.files[i].checked){
+						files.push($scope.files[i].name);
+					}
+				}
+				var printer = null;
+				for(var i=0; i<$scope.printers.length; ++i){
+					if($scope.printers[i].checked){
+						printer = $scope.printers[i];
+						break;
+					}
+				}
+
+				// if(printer && confirm("Print "+files.join(",")+" with "+printer.name+"?")){
+					var goprint = function goprint(){
+						if(files.length>0){
+							var filename = files.pop();
+							$scope.status = 'print '+filename+'...';
+							$http({url:'/api/print',params:{printername:printer.name,filename:filename}}).success(function(res) {
+								$scope.error = $scope.status = '';
+								goprint();
+							}).error(function(){
+								$scope.status = '';
+								$scope.error = "error!";
+							});
+						}
+					};
+					goprint();
+				// }
+			}
+			$scope.upload = function(){
+				$("#uploadform #filefield").val('');
+				$("#uploadform #filefield").click();
 			}
 			$scope.refresh();
+
+			$scope.uploader = {};
+
+			// window.$scope = $scope;
+			$(function(){
+				$("#uploadform #filefield").change(function(){
+					if(!$("#uploadform #filefield").val() || $("#uploadform #filefield").val() == ''){
+						return;
+					}
+					$("#uploadform").ajaxSubmit({
+						url:'/',
+						dataType:'json',
+						// iframe:true,
+						success:function(res){
+							$scope.$apply(function(){
+								if(res){
+									var has = false;
+									for(var i=0; i<$scope.files.length; ++i){
+										if($scope.files[i].name == res.name){
+											res = $scope.files[i];
+											has = true;
+											break;
+										}
+									}
+									res.isnew = true;
+									res.checked = true;
+									if(!has)
+										$scope.files.push(res);
+								}
+								$scope.error = $scope.status = '';
+							});
+						},
+						error:function(msg){
+							$scope.$apply(function(){
+								$scope.status = '';
+								$scope.error = "upload failed!";
+							});
+						},
+						beforeSubmit:function(){
+							$scope.$apply(function(){
+								$scope.status = 'uploading...';
+								$scope.error = '';
+								$scope.uploader = {};
+							});
+						},
+						uploadProgress: function(event, position, total, percentComplete) {
+							$scope.$apply(function(){
+								$scope.uploader.progress = percentComplete<100?percentComplete+"%":null;
+							});
+						},
+					})
+				});
+			});
 		});
+
+
+
 		</script>
 	</body>
 </html>
