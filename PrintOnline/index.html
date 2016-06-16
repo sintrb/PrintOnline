@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width,height=device-height,inital-scale=1.0,maximum-scale=1.0,user-scalable=no;">
+		<script src="/static/angular.min.js"></script>
+		<title>PrintOnline</title>
+		<style type="text/css">
+		body{
+			font-size: 14px;
+		}
+		a{
+			color: blue;
+			text-decoration: none;
+			padding: 5px 0;
+		}
+		.file, .printer{
+
+		}
+		.file:hover, .printer:hover{
+			cursor: pointer;
+			background: #E0E0E0;
+		}
+		table{
+
+		}
+		tr,td,table{
+			border: none;
+			border-collapse: collapse;
+		}
+
+		td{
+			border-left: 1px solid gray;
+			border-right: 1px solid gray;
+			/*padding: 2px 5px;*/
+			border-bottom: 1px solid gray;
+		}
+		.titleline td{
+			border-bottom: 1px solid gray;
+		}
+		td.status{
+			text-align: center;
+			width: 50px;
+		}
+		.titleline td{
+			border-top: 1px solid gray;
+		}
+		td.checkbox{
+			text-align: center;
+			/*width: 30px;*/
+			width: 1.5rem;
+		}
+		.checkbox{
+			width: 1.2rem;
+			height: 1.2rem;
+		}
+		.btns a{
+			color: gray;
+		}
+		.btns a.enable{
+			color: blue;
+		}
+		</style>
+	</head>
+	<body>
+		<div ng-app="PrintOnline" ng-controller="PrintOnlineCtrl">
+			<div style="width: 100%; margin: 0 auto; max-width: 800px;">
+				<div>
+					<span style="float: left;">{{status}}</span>
+					<span style="color: red; float: left;" ng-if="error.length>0">{{error}}</span>
+					<span ng-show="info.rev" style="float: right;">[REV:{{info.rev}}]</span>
+					<span style="clear: both;"></span>
+				</div>
+				Printers:
+				<table style="width: 100%; margin: 5px 0;">
+					<tr class="titleline">
+						<td class="checkbox">
+							<!-- <img class="checkbox" ng-click="checkall()" ng-src="{{checkedall?'/static/checked.png':'/static/unchecked.png'}}"> -->
+						</td>
+						<td>
+							Name
+						</td>
+					</tr>
+					<tr ng-repeat="p in printers" class="printer" ng-if="printers && printers.length>0" ng-click="selprinter(p)">
+						<td class="checkbox">
+							<img class="checkbox" ng-src="{{p.checked?'/static/checked.png':'/static/unchecked.png'}}">
+						</td>
+						<td>
+							<a style="display: block;">{{p.name}}</a>
+						</td>
+					</tr>
+					<tr class="printer" ng-if="!printers || printers.length==0">
+						<td colspan="3">
+							<p style="text-align:center;">
+								no printer~
+							</p>
+						</td>
+					</tr>
+				</table>
+				<hr />
+				Files:
+					<input type="text" ng-model="query" style="width:120px;" />
+					<button ng-click="print()">PRINT<span>({{selectedfiles().length}})</span></button>
+					<button>UPLOAD</button>
+					<form style="">
+						<input type="file" name="file" />
+					</form>
+				<table style="width: 100%; margin: 5px 0;">
+					<tr class="titleline">
+						<td class="checkbox">
+							<img class="checkbox" ng-click="checkall()" ng-src="{{checkedall?'/static/checked.png':'/static/unchecked.png'}}">
+						</td>
+						<td>
+							Name
+						</td>
+					</tr>
+					<tr ng-repeat="f in files|filter:query" class="file" ng-if="files && files.length>0">
+						<td class="checkbox">
+							<img class="checkbox" ng-click="f.checked=!f.checked" ng-src="{{f.checked?'/static/checked.png':'/static/unchecked.png'}}">
+						</td>
+						<td>
+							<a style="display: block;" href="#{{path+f.path}}" ng-if="f.path.endsWith('/')">{{f.name}}</a>
+							<a style="display: block;" ng-click="f.checked=!f.checked" ng-if="! f.path.endsWith('/')">{{f.name}}</a>
+						</td>
+					</tr>
+					<tr class="file" ng-if="!files || files.length==0">
+						<td colspan="3">
+							<p style="text-align:center;">
+								no file~
+							</p>
+						</td>
+					</tr>
+				</table>
+				<div style="border: 1px solid gray; padding:5px;" ng-show="logs && logs.length>0">
+					<span style="display: block;" ng-repeat="l in logs">{{l}}</span>
+				</div>
+
+				<div style="text-align: center; margin-top: 10px;" class="btns">
+					<a href="javascript:void(0);" ng-click="refresh();" ng-class="{enable:true}">REFRESH</a>
+					|
+					<a href="javascript:void(0);" ng-click="svninfo();" ng-enable="can_status()" ng-class="{enable:can_status()}">PRINT</a>
+				</div>
+			</div>
+		</div>
+		<script>
+		var app = angular.module('PrintOnline', []);
+		app.controller('PrintOnlineCtrl', function($scope, $http,$location,$window) {
+			scope = $scope;
+			$scope.status = '';
+			$scope.checkall = function(){
+				$scope.checkedall = !$scope.checkedall;
+				for (var i = 0; i < $scope.files.length; i++) {
+					$scope.files[i].checked = $scope.checkedall;
+				}
+			};
+			$scope.text = "";
+			$scope.logs = [];
+			$scope.selprinter = function(p){
+				for (var i = 0; i < $scope.printers.length; i++) {
+					$scope.printers[i].checked = p == $scope.printers[i];
+				}
+			};
+			$scope.selectedfiles = function(){
+				var arr = [];
+				if($scope.files){
+					for (var i = 0; i < $scope.files.length; i++) {
+						if($scope.files[i].checked){
+							arr.push($scope.files[i]);
+						}
+					}
+				}
+				return arr;
+			}
+			$scope.refresh = function(){
+				$scope.status = 'refresh...';
+				$http({url:'/api/update',params:{path:$scope.path}}).success(function(res) {
+					$scope.error = $scope.status = '';
+					$scope.files = res.data.files;
+					$scope.printers = res.data.printers;
+				}).error(function(){
+					$scope.status = '';
+					$scope.error = "error!";
+				});
+			};
+			$scope.print = function(){
+				console.log('print');
+				$scope.logs.push("dd");
+			}
+			$scope.refresh();
+		});
+		</script>
+	</body>
+</html>
