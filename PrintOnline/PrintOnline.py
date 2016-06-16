@@ -21,7 +21,7 @@ import shutil
 import socket
 import sys
 import urlparse
-
+import cgi
 import re
 import inspect
 import tempfile
@@ -33,7 +33,7 @@ except ImportError:
     from StringIO import StringIO
 
 reload(sys)
-# sys.setdefaultencoding("utf-8")
+sys.setdefaultencoding("utf-8")
 
 libdir = os.path.dirname(__file__)
 if not libdir:
@@ -61,9 +61,14 @@ def get_files():
         arr = []
         for f in os.listdir(options['tempdir']):
             if os.path.isfile(os.path.join(options['tempdir'], f)):
-                arr.append({
-                        'name':u'%s' % f.decode('windows-1252'),
-                    })
+                try:
+                    arr.append({
+                            'name':u'%s' % f.decode('windows-1252'),
+                            'st_mtime':os.stat(os.path.join(d, f)).st_mtime
+                        })
+                except Exception, e:
+                    print e
+        arr.sort(key=lambda x:x['st_mtime'])
         return arr 
     else:
         return []
@@ -83,16 +88,16 @@ def set_file(name, fp):
 
 def print_file(filename, printername):
     printername = win32print.GetDefaultPrinter()
-#     filepath = os.path.join(options['tempdir'], filename).decode('utf-8')
     device = '/d:"%s"' % printername
-#     print filepath, device
-#     filepath = r'C:\Users\Administrator\Desktop\LeetCode\全页照片.pdf'
-#     device = r'/d:"doPDF v7"'
     os.chdir(options['tempdir'])
+#     win32api.ShellExecute(0, "print", filename, device, options['tempdir'], 0)
+#     return True
     try:
         win32api.ShellExecute(0, "print", filename, device, options['tempdir'], 0)
-    except Exception,e:
+        return True
+    except Exception, e:
         print e
+        return False
         
 
 class PrintOnlineRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
@@ -130,21 +135,13 @@ class PrintOnlineRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
                 'printers':self.api_printers()
                 }
     def api_print(self, filename, printername):
-        print_file(filename, printername)
-        return {}
+        return {'ok':print_file(filename, printername)}
     def do_POST(self):
         if not self.check_auth():
             return
         f = StringIO()
         contenttype = 'text/html'
         statuscode = 200
-        
-#         length = int(self.headers.getheader('content-length'))
-#         body = self.rfile.read(length)
-#         print len(body)
-#         print body
-        import cgi 
-        
         form = cgi.FieldStorage(
             fp=self.rfile,
             headers=self.headers,

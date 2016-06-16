@@ -119,8 +119,7 @@
 							<img class="checkbox" ng-click="f.checked=!f.checked" ng-src="{{f.checked?'/static/checked.png':'/static/unchecked.png'}}">
 						</td>
 						<td>
-							<a style="display: block;" href="#{{path+f.path}}" ng-if="f.path.endsWith('/')">{{f.name}}</a>
-							<a style="display: block;" ng-click="f.checked=!f.checked" ng-if="! f.path.endsWith('/')">{{f.name}}</a>
+							<a style="display: block;" ng-click="f.checked=!f.checked">{{f.name}} <span style="color:red" ng-if="f.printfail">failed!</span></a>
 						</td>
 					</tr>
 					<tr class="file" ng-if="!files || files.length==0">
@@ -190,7 +189,7 @@
 				var files = [];
 				for(var i=0; i<$scope.files.length; ++i){
 					if($scope.files[i].checked){
-						files.push($scope.files[i].name);
+						files.push($scope.files[i]);
 					}
 				}
 				var printer = null;
@@ -201,13 +200,18 @@
 					}
 				}
 
-				// if(printer && confirm("Print "+files.join(",")+" with "+printer.name+"?")){
+				if(printer && confirm("Print "+files.length+" files with "+printer.name+"?")){
 					var goprint = function goprint(){
 						if(files.length>0){
-							var filename = files.pop();
+							var file = files.pop();
+							var filename = file.name;
 							$scope.status = 'print '+filename+'...';
 							$http({url:'/api/print',params:{printername:printer.name,filename:filename}}).success(function(res) {
 								$scope.error = $scope.status = '';
+								if(res.data.ok){
+									file.checked = false;
+								}
+								file.printfail = !res.data.ok;
 								goprint();
 							}).error(function(){
 								$scope.status = '';
@@ -216,7 +220,7 @@
 						}
 					};
 					goprint();
-				// }
+				}
 			}
 			$scope.upload = function(){
 				$("#uploadform #filefield").val('');

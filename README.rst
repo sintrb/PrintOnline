@@ -15,11 +15,6 @@ cd to you working directory and run command:
 
 ::
 
- PrintOnline
-
-on Windows use:
-::
-
  PrintOnline.bat
 
 if can't find PrintOnline command, try:
@@ -28,7 +23,7 @@ if can't find PrintOnline command, try:
  python -m PrintOnline
 
 
-open broswer with url **http://127.0.0.1:8000**
+open broswer with url **http://127.0.0.1:8000**, upload file and print it.
 
 
 Other tips
