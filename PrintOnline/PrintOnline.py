@@ -11,7 +11,7 @@ This module refer to SimpleHTTPServer
 """
 
 
-__version__ = "0.0.2"
+__version__ = "0.0.3"
 
 import BaseHTTPServer
 import SocketServer
@@ -25,7 +25,7 @@ import cgi
 import re
 import inspect
 import tempfile
-import win32api, win32print
+
 
 try:
     from cStringIO import StringIO
@@ -53,7 +53,11 @@ def ex(e, c=-1):
     return ApiException({"code":c, "msg":e})
 
 def get_printers():
-    return [{'name':d[2]} for d in win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL)]
+    try:
+        import win32print
+        return [{'name':d[2]} for d in win32print.EnumPrinters(win32print.PRINTER_ENUM_LOCAL)]
+    except:
+        return []
 
 def get_files():
     d = options['tempdir']
@@ -87,6 +91,7 @@ def set_file(name, fp):
         f.write(fp.read())
 
 def print_file(filename, printername):
+    import win32api, win32print
     printername = win32print.GetDefaultPrinter()
     device = '/d:"%s"' % printername
     os.chdir(options['tempdir'])
@@ -212,14 +217,20 @@ class PrintOnlineRequestHandler(BaseHTTPServer.BaseHTTPRequestHandler):
             f.write(json.dumps(res))
         else:
             filepath = os.path.join(libdir, url.path.strip('/') or 'index.html')
+            tfilepath = os.path.join(options['tempdir'], url.path.strip('/'))
             if os.path.exists(filepath) and os.path.isfile(filepath):
                 f.write(open(filepath, 'rb').read())
+            elif os.path.exists(tfilepath) and os.path.isfile(tfilepath):
+                f.write(open(tfilepath, 'rb').read())
+                contenttype = None
             else:
+                print os.path.join(options['tempdir'], url.path.strip('/'))
                 statuscode = 404
                 f.write("404 not found")
 
         self.send_response(statuscode)
-        self.send_header("Content-type", contenttype)
+        if contenttype:
+            self.send_header("Content-type", contenttype)
         self.send_header("Content-Length", str(f.tell()))
         self.send_header('Connection', 'close')
         self.end_headers()

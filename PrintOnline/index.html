@@ -6,7 +6,7 @@
 		<script src="/static/angular.min.js"></script>
 		<script src="/static/jquery-1.7.2.min.js"></script>
 		<script src="/static/jquery.form.min.js"></script>
-		<script src="/static/jquery.ajaxfileupload.js"></script>
+		<!-- <script src="/static/jquery.ajaxfileupload.js"></script> -->
 		<title>PrintOnline</title>
 		<style type="text/css">
 		body{
@@ -113,6 +113,9 @@
 						<td>
 							Name
 						</td>
+						<td>
+							
+						</td>
 					</tr>
 					<tr ng-repeat="f in files|filter:query|orderBy:'$index':true" class="file" ng-if="files && files.length>0" ng-class="{newitem:f.isnew}">
 						<td class="checkbox">
@@ -120,6 +123,9 @@
 						</td>
 						<td>
 							<a style="display: block;" ng-click="f.checked=!f.checked">{{f.name}} <span style="color:red" ng-if="f.printfail">failed!</span></a>
+						</td>
+						<td>
+							<a href="/{{f.name}}" target="_blank">Download</a>
 						</td>
 					</tr>
 					<tr class="file" ng-if="!files || files.length==0">
@@ -138,6 +144,8 @@
 					<a href="javascript:void(0);" ng-click="refresh();" ng-class="{enable:true}">REFRESH</a>
 					|
 					<a href="javascript:void(0);" ng-click="print();" ng-enable="selected()" ng-class="{enable:selected()}">PRINT</a>
+					|
+					<a href="https://github.com/sintrb/PrintOnline" target="_blank" class="enable">GitHub</a>
 				</div>
 			</div>
 		</div>

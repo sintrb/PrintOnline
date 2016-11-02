@@ -9,3 +9,6 @@ CHANGES
 
 - remove win32api requires.
 
+0.0.3
+
+- add download function.
